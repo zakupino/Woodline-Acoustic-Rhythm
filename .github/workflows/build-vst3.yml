@@ -37,34 +37,3 @@ jobs:
           path: build/Woodline_artefacts/Release/VST3/
           if-no-files-found: error
           retention-days: 30
-
-  macos-vst3:
-    name: macOS ${{ matrix.arch }} VST3
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: macos-latest
-            arch: arm64
-            artifact: Woodline-macOS-ARM64-VST3
-          - runner: macos-15-intel
-            arch: x86_64
-            artifact: Woodline-macOS-Intel-x64-VST3
-    runs-on: ${{ matrix.runner }}
-    steps:
-      - name: Checkout source
-        uses: actions/checkout@v7
-
-      - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} -DJUCE_BUILD_EXTRAS=OFF -DJUCE_BUILD_EXAMPLES=OFF
-
-      - name: Build Release VST3
-        run: cmake --build build --config Release --parallel 3
-
-      - name: Upload macOS VST3
-        uses: actions/upload-artifact@v7
-        with:
-          name: ${{ matrix.artifact }}
-          path: build/Woodline_artefacts/Release/VST3/
-          if-no-files-found: error
-          retention-days: 30
