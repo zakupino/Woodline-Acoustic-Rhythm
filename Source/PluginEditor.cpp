@@ -428,8 +428,11 @@ WoodlineAudioProcessorEditor::WoodlineAudioProcessorEditor (WoodlineAudioProcess
     loopAttachment = std::make_unique<ButtonAttachment> (processor.parameters, "loopEnabled", loopButton);
     syncAttachment = std::make_unique<ButtonAttachment> (processor.parameters, "dawSync", syncButton);
 
-    for (auto* component : { static_cast<juce::Component*> (&strumStyleBox), &chordModeBox, &voicingBox, &loopPatternBox,
-                             &themeBox, &latchButton, &loopButton, &syncButton })
+    const std::array<juce::Component*, 8> controls {{
+        &strumStyleBox, &chordModeBox, &voicingBox, &loopPatternBox,
+        &themeBox, &latchButton, &loopButton, &syncButton
+    }};
+    for (auto* component : controls)
         addAndMakeVisible (component);
 
     strumStyleLabel.setText ("STRUM STYLE", juce::dontSendNotification);
