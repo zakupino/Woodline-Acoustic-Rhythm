@@ -444,7 +444,7 @@ WoodlineAudioProcessorEditor::WoodlineAudioProcessorEditor (WoodlineAudioProcess
     loopAttachment = std::make_unique<ButtonAttachment> (processor.parameters, "loopEnabled", loopButton);
     syncAttachment = std::make_unique<ButtonAttachment> (processor.parameters, "dawSync", syncButton);
 
-    const std::array<juce::Component*, 8> controls {{
+    const std::array<juce::Component*, 9> controls {{
         &strumStyleBox, &chordModeBox, &voicingBox, &loopPatternBox,
         &themeBox, &keySelectBox, &latchButton, &loopButton, &syncButton
     }};
@@ -452,11 +452,9 @@ WoodlineAudioProcessorEditor::WoodlineAudioProcessorEditor (WoodlineAudioProcess
         addAndMakeVisible (component);
 
     strumStyleLabel.setText ("STRUM STYLE", juce::dontSendNotification);
-    keyLabel.setText ("KEY / MIDI ROOT", juce::dontSendNotification);
     chordModeLabel.setText ("CHORD MODE", juce::dontSendNotification);
     voicingLabel.setText ("VOICING", juce::dontSendNotification);
     loopPatternLabel.setText ("RHYTHM LOOP", juce::dontSendNotification);
-    keyLabel.setText ("KEY / MIDI ROOT", juce::dontSendNotification);
     themeLabel.setText ("THEME", juce::dontSendNotification);
     for (auto* label : { &strumStyleLabel, &chordModeLabel, &voicingLabel, &loopPatternLabel, &themeLabel, &keyLabel })
     {
@@ -617,55 +615,65 @@ void WoodlineAudioProcessorEditor::paint (juce::Graphics& g)
     g.fillRoundedRectangle (board.toFloat(), 9.0f);
     g.setColour (palette.border);
     g.drawRoundedRectangle (board.toFloat(), 9.0f, 1.0f);
+    const auto patternValue = processor.parameters.getRawParameterValue ("loopPattern")->load();
+    const auto patternIndex = static_cast<int> (patternValue);
+    static const juce::String patternNames[] = {
+        "Acoustic Pop 01", "Folk 02", "Indie 03", "Ballad 04",
+        "Country 05", "Sixteenth 06", "Soft 07", "Driving 08"
+    };
+
     g.setColour (palette.accentBright);
     g.setFont (juce::Font (10.5f, juce::Font::bold));
-    g.drawText ("STRUM PATTERN", 25, boardY + 8, 105, 18, juce::Justification::centredLeft);
-    static const int arrows[8] = { 0, 1, 0, 1, 0, 1, 0, 1 };
-    for (int i = 0; i < 8; ++i)
+    g.drawText ("PERFORMANCE MAP", 25, boardY + 8, 135, 15, juce::Justification::centredLeft);
+    g.setColour (palette.muted);
+    g.setFont (juce::Font (9.0f));
+    g.drawText (patternNames[juce::jlimit (0, 7, patternIndex)], 25, boardY + 24, 142, 14,
+                juce::Justification::centredLeft);
+
+    const auto stepStart = 184.0f;
+    const auto stepEnd = static_cast<float> (getWidth() - 365);
+    const auto stepWidth = (stepEnd - stepStart) / 16.0f;
+    for (int step = 0; step < 16; ++step)
     {
-        const auto x = 34 + i * 16;
-        const auto y = boardY + 41;
-        g.setColour (palette.accent.withAlpha (0.8f));
-        if (arrows[i] == 0)
+        const auto event = WoodlineAudioProcessor::getPatternStepForDisplay (patternIndex, step);
+        const auto cellX = stepStart + static_cast<float> (step) * stepWidth;
+        const auto centreX = cellX + stepWidth * 0.5f;
+        const auto centreY = static_cast<float> (boardY + 42);
+        g.setColour (withAlpha (palette.border, 0.85f));
+        g.drawRoundedRectangle (juce::Rectangle<float> (cellX + 2.0f, static_cast<float> (boardY + 18),
+                                                         stepWidth - 4.0f, 43.0f), 3.0f, 0.8f);
+        g.setColour (palette.muted);
+        g.setFont (juce::Font (8.0f));
+        g.drawText (juce::String (step + 1), static_cast<int> (cellX), boardY + 62,
+                    static_cast<int> (stepWidth), 10, juce::Justification::centred);
+        if (event == 0 || event == 1)
         {
-            g.drawLine (static_cast<float> (x), static_cast<float> (y - 9), static_cast<float> (x), static_cast<float> (y + 8), 2.0f);
-            g.drawLine (static_cast<float> (x - 4), static_cast<float> (y + 3), static_cast<float> (x), static_cast<float> (y + 8), 2.0f);
-            g.drawLine (static_cast<float> (x + 4), static_cast<float> (y + 3), static_cast<float> (x), static_cast<float> (y + 8), 2.0f);
+            const auto direction = event == 0 ? -1.0f : 1.0f;
+            const auto headY = centreY + direction * 8.0f;
+            g.setColour (palette.accentBright);
+            g.drawLine (centreX, centreY - direction * 8.0f, centreX, headY, 2.0f);
+            g.drawLine (centreX - 4.0f, headY - direction * 4.0f, centreX, headY, 2.0f);
+            g.drawLine (centreX + 4.0f, headY - direction * 4.0f, centreX, headY, 2.0f);
+        }
+        else if (event == 2)
+        {
+            g.setColour (palette.accentBright);
+            g.fillRoundedRectangle (centreX - 3.0f, centreY - 9.0f, 6.0f, 18.0f, 2.0f);
         }
         else
         {
-            g.drawLine (static_cast<float> (x), static_cast<float> (y + 8), static_cast<float> (x), static_cast<float> (y - 9), 2.0f);
-            g.drawLine (static_cast<float> (x - 4), static_cast<float> (y - 4), static_cast<float> (x), static_cast<float> (y - 9), 2.0f);
-            g.drawLine (static_cast<float> (x + 4), static_cast<float> (y - 4), static_cast<float> (x), static_cast<float> (y - 9), 2.0f);
+            g.setColour (withAlpha (palette.muted, 0.4f));
+            g.fillEllipse (centreX - 1.5f, centreY - 1.5f, 3.0f, 3.0f);
         }
     }
 
-    const auto fretStart = 185.0f;
-    const auto fretEnd = static_cast<float> (getWidth() - 250);
-    for (int string = 0; string < 6; ++string)
-    {
-        const auto y = static_cast<float> (boardY + 22 + string * 8);
-        g.setColour (withAlpha (palette.muted, 0.72f));
-        g.drawLine (fretStart, y, fretEnd, y, string == 0 ? 1.8f : 1.0f);
-    }
-    for (int fret = 0; fret <= 14; ++fret)
-    {
-        const auto x = fretStart + static_cast<float> (fret) * (fretEnd - fretStart) / 14.0f;
-        g.setColour (withAlpha (palette.border, 0.9f));
-        g.drawLine (x, static_cast<float> (boardY + 18), x, static_cast<float> (boardY + 66), 1.0f);
-    }
     g.setColour (palette.muted);
-    g.setFont (juce::Font (9.5f));
-    g.drawText ("KEY", getWidth() - 213, boardY + 12, 35, 14, juce::Justification::centred);
+    g.setFont (juce::Font (8.5f, juce::Font::bold));
+    g.drawText ("DAW TEMPO", getWidth() - 350, boardY + 10, 112, 14, juce::Justification::centred);
     g.setColour (palette.text);
     g.setFont (juce::Font (14.0f, juce::Font::bold));
-    g.drawText ("C", getWidth() - 210, boardY + 34, 31, 22, juce::Justification::centred);
-    g.setColour (palette.muted);
-    g.setFont (juce::Font (9.5f));
-    g.drawText ("TEMPO", getWidth() - 160, boardY + 12, 55, 14, juce::Justification::centred);
-    g.setColour (palette.text);
-    g.setFont (juce::Font (13.0f, juce::Font::bold));
-    g.drawText ("DAW", getWidth() - 158, boardY + 34, 54, 22, juce::Justification::centred);
+    g.drawText (juce::String (processor.getDisplayTempo(), 1) + " BPM", getWidth() - 350, boardY + 32,
+                112, 23, juce::Justification::centred);
 }
 
 void WoodlineAudioProcessorEditor::resized()
@@ -674,6 +682,8 @@ void WoodlineAudioProcessorEditor::resized()
     const auto height = getHeight();
     themeBox.setBounds (width - 148, 13, 132, 29);
     themeLabel.setBounds (width - 212, 17, 55, 20);
+    keyLabel.setBounds (width - 210, height - 85, 190, 15);
+    keySelectBox.setBounds (width - 210, height - 59, 190, 29);
     presetBrowser.setBounds (12, 64, width - 24, 337);
 
     const int top = 412;
@@ -729,5 +739,6 @@ void WoodlineAudioProcessorEditor::resized()
 void WoodlineAudioProcessorEditor::timerCallback()
 {
     displayedOutputLevel = processor.getOutputLevel();
+    repaint (getWidth() - 365, getHeight() - 96, 365, 90);
     repaint (getWidth() - 180, 0, 180, 56);
 }
