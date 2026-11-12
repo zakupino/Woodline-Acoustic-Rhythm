@@ -529,6 +529,94 @@ WoodlineAudioProcessorEditor::WoodlineAudioProcessorEditor (WoodlineAudioProcess
         processor.loadPreset (index);
         presetBrowser.setSelectedPreset (index);
     });
+    presetBrowser.setUserPresetFiles (processor.getUserPresetFiles());
+    presetBrowser.setOnUserPresetSelected ([this] (const juce::File& file)
+    {
+        if (processor.loadUserPreset (file))
+            presetBrowser.setUserPresetFiles (processor.getUserPresetFiles());
+        else
+            juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon,
+                                                     "Woodline Preset",
+                                                     "This preset file is invalid or is not a Woodline .wlpreset file.");
+    });
+
+    presetBrowser.setOnSaveRequested ([this]
+    {
+        auto directory = processor.getUserPresetDirectory();
+        directory.createDirectory();
+        auto chooser = std::make_shared<juce::FileChooser> (
+            "Save Woodline User Preset", directory.getChildFile ("My Guitar Sound.wlpreset"), "*.wlpreset");
+        chooser->launchAsync (juce::FileBrowserComponent::saveMode
+                              | juce::FileBrowserComponent::canSelectFiles
+                              | juce::FileBrowserComponent::warnAboutOverwriting,
+            [this, chooser] (const juce::FileChooser& fc)
+            {
+                const auto file = fc.getResult();
+                if (file == juce::File())
+                    return;
+                const auto name = file.getFileNameWithoutExtension();
+                if (processor.saveUserPreset (file, name))
+                {
+                    presetBrowser.setUserPresetFiles (processor.getUserPresetFiles());
+                    juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::InfoIcon,
+                                                             "Woodline Preset Saved",
+                                                             "Your preset was saved to the User Presets library.");
+                }
+                else
+                    juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon,
+                                                             "Woodline Preset",
+                                                             "Could not save this preset. Please choose a valid file name.");
+            });
+    });
+
+    presetBrowser.setOnImportRequested ([this]
+    {
+        auto chooser = std::make_shared<juce::FileChooser> (
+            "Import Woodline Preset", juce::File(), "*.wlpreset");
+        chooser->launchAsync (juce::FileBrowserComponent::openMode
+                              | juce::FileBrowserComponent::canSelectFiles,
+            [this, chooser] (const juce::FileChooser& fc)
+            {
+                const auto file = fc.getResult();
+                if (file == juce::File())
+                    return;
+                if (processor.loadUserPreset (file))
+                {
+                    presetBrowser.setUserPresetFiles (processor.getUserPresetFiles());
+                    juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::InfoIcon,
+                                                             "Woodline Preset Imported",
+                                                             "The preset was loaded and added to your User Presets library.");
+                }
+                else
+                    juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon,
+                                                             "Import Failed",
+                                                             "The selected file is not a valid Woodline .wlpreset file.");
+            });
+    });
+
+    presetBrowser.setOnExportRequested ([this]
+    {
+        auto chooser = std::make_shared<juce::FileChooser> (
+            "Export Current Woodline Sound", juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
+                .getChildFile ("Woodline Sound.wlpreset"), "*.wlpreset");
+        chooser->launchAsync (juce::FileBrowserComponent::saveMode
+                              | juce::FileBrowserComponent::canSelectFiles
+                              | juce::FileBrowserComponent::warnAboutOverwriting,
+            [this, chooser] (const juce::FileChooser& fc)
+            {
+                const auto file = fc.getResult();
+                if (file == juce::File())
+                    return;
+                if (processor.saveUserPreset (file, file.getFileNameWithoutExtension()))
+                    juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::InfoIcon,
+                                                             "Woodline Preset Exported",
+                                                             "Your current sound was exported as a .wlpreset file.");
+                else
+                    juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon,
+                                                             "Export Failed",
+                                                             "Could not export the current preset.");
+            });
+    });
 
     setupKnob (0, "strumSpeed", "STRUM SPEED");
     setupKnob (1, "humanize", "HUMANIZE");
