@@ -9,6 +9,11 @@ on:
 permissions:
   contents: read
 
+# Keep only the newest build for a branch; avoid a queue of superseded commits.
+concurrency:
+  group: woodline-vst3-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   windows-vst3:
     name: Windows x64 VST3
