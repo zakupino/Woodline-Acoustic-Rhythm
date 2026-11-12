@@ -456,6 +456,7 @@ WoodlineAudioProcessorEditor::WoodlineAudioProcessorEditor (WoodlineAudioProcess
     voicingLabel.setText ("VOICING", juce::dontSendNotification);
     loopPatternLabel.setText ("RHYTHM LOOP", juce::dontSendNotification);
     themeLabel.setText ("THEME", juce::dontSendNotification);
+    keyLabel.setText ("KEY / MIDI ROOT", juce::dontSendNotification);
     for (auto* label : { &strumStyleLabel, &chordModeLabel, &voicingLabel, &loopPatternLabel, &themeLabel, &keyLabel })
     {
         label->setFont (juce::Font (10.5f, juce::Font::bold));
