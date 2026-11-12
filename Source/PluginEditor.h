@@ -14,6 +14,11 @@ public:
     void setPalette (const WoodlinePalette& newPalette);
     void setSelectedPreset (int index);
     void setOnPresetSelected (std::function<void (int)> callback);
+    void setUserPresetFiles (const juce::Array<juce::File>& files);
+    void setOnUserPresetSelected (std::function<void (const juce::File&)> callback);
+    void setOnSaveRequested (std::function<void()> callback);
+    void setOnImportRequested (std::function<void()> callback);
+    void setOnExportRequested (std::function<void()> callback);
     void paint (juce::Graphics& g) override;
     void resized() override;
     void mouseDown (const juce::MouseEvent& event) override;
@@ -25,7 +30,10 @@ private:
     void drawGuitarArtwork (juce::Graphics& g, juce::Rectangle<float> area, juce::Colour accent) const;
 
     WoodlinePalette palette = getWoodlinePalette (0);
+    juce::Array<juce::File> userPresetFiles;
     std::function<void (int)> onPresetSelected;
+    std::function<void (const juce::File&)> onUserPresetSelected;
+    std::function<void()> onSaveRequested, onImportRequested, onExportRequested;
     juce::String selectedCategory = "All Presets";
     int selectedPreset = 0;
     int pageIndex = 0;
