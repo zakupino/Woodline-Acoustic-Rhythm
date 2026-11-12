@@ -7,11 +7,12 @@ A JUCE/C++ instrument project for a MIDI-triggered acoustic rhythm guitar. The r
 ## Features in this source build
 
 - VST3 instrument with MIDI input and stereo output.
-- One-note chord triggering with selectable Major, Minor, 7th, Maj7, Sus2 and Power chord modes.
-- Six-note strums, Down/Up/Alternate/Fingerpick style selection, strum speed and humanization.
-- Eight rhythm-loop patterns, loop latch, key-switch pattern changes and Ableton/DAW tempo sync.
-- 60 built-in parameter presets across Strumming, Fingerstyle, Pop & Ballad, Rock, Country and Cinematic categories.
-- Custom preset browser with search, categories, preset details and one-click loading.
+- One-note chord triggering with selectable Major, Minor, 7th, Maj7, Sus2 and Power chord modes, plus Solo voicing.
+- Six-note strums with Down/Up/Alternate/Fingerpick styles. Strum Speed controls only the delay between individual string attacks.
+- Eight familiar rhythm feels (pop eighths, ballad, folk eighths, country boom-chuck, indie syncopation, fingerpicked pulse, rock quarters and sixteenths).
+- Rhythm groove follows the DAW tempo when DAW Sync is enabled. Factory presets no longer write their own BPM into the project tempo.
+- 60 built-in parameter presets across Strumming, Fingerstyle, Pop & Ballad, Rock, Country and Cinematic categories, with a paged browser so every preset can be reached.
+- Key/root control can follow incoming MIDI notes or use a manually selected pitch class.
 - Six UI themes: Studio Dark, Soft Light, Ocean Blue, Forest Green, Aurora Violet and Ember Gradient.
 - Host automation/state recall through JUCE AudioProcessorValueTreeState.
 
@@ -53,7 +54,9 @@ There is no Windows installer in this project. The VST3 bundle must still be cop
 - Play any note above the key-switch range to trigger a chord based on that note's pitch class.
 - MIDI notes **24–35** (C1–B1 in the common MIDI note-number convention) select rhythm patterns while a chord loop is active. The first eight notes select patterns 1–8; the remaining four cycle back through patterns 1–4.
 - Hold a chord note to keep the rhythm running. Turn **Latch** on to continue after note release.
-- Turn **DAW Sync** on to follow the host tempo. Turn it off to use the plug-in Tempo control.
+- Turn **DAW Sync** on to follow the host tempo. Turn it off to use the plug-in Tempo control. Preset loading does not change either tempo.
+- **Strum Speed** rolls the chord string-by-string; it does not change the rhythm grid or BPM.
+- **Key / MIDI Root** defaults to Follow MIDI. Choose C–B to transpose the chord root to a fixed pitch class.
 - The Pattern menu in the UI selects the same eight built-in patterns.
 
 Some DAWs label MIDI octaves differently. If the visible octave name differs, use MIDI note numbers 24–35 for the key switches.
@@ -90,7 +93,8 @@ JUCE is an external dependency fetched by CMake during the GitHub Actions build.
 ## Release checklist before selling or distributing
 
 - Test the VST3 in Ableton Live on the exact Windows/macOS versions you support.
-- Add licensed multisampled guitar recordings (multiple velocity layers, round robins, release/fret/pick noises) for realism.
+- Integrate the CC0 Meta Steel Guitar multisample source for more realistic acoustic playback (375 string-by-string samples, three velocity layers, E2–C6). The sample bank is not yet embedded in this prototype binary.
+- Add additional licensed nylon/electric multisamples, round robins, release/fret/pick noises and realistic strum articulations.
 - Profile CPU use with long sessions and high polyphony.
 - Implement and test user-preset saving, preset import/export and a proper sample-content updater.
 - Code-sign/notarize macOS distributions if required by your distribution channel.
