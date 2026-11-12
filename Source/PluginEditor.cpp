@@ -34,6 +34,33 @@ void PresetBrowserComponent::setOnPresetSelected (std::function<void (int)> call
     onPresetSelected = std::move (callback);
 }
 
+void PresetBrowserComponent::setUserPresetFiles (const juce::Array<juce::File>& files)
+{
+    userPresetFiles = files;
+    pageIndex = 0;
+    repaint();
+}
+
+void PresetBrowserComponent::setOnUserPresetSelected (std::function<void (const juce::File&)> callback)
+{
+    onUserPresetSelected = std::move (callback);
+}
+
+void PresetBrowserComponent::setOnSaveRequested (std::function<void()> callback)
+{
+    onSaveRequested = std::move (callback);
+}
+
+void PresetBrowserComponent::setOnImportRequested (std::function<void()> callback)
+{
+    onImportRequested = std::move (callback);
+}
+
+void PresetBrowserComponent::setOnExportRequested (std::function<void()> callback)
+{
+    onExportRequested = std::move (callback);
+}
+
 void PresetBrowserComponent::resized()
 {
 }
@@ -116,7 +143,9 @@ void PresetBrowserComponent::paint (juce::Graphics& g)
                 juce::Justification::centredLeft);
 
     const auto visible = getVisiblePresets();
-    const auto pageCount = juce::jmax (1, (static_cast<int> (visible.size()) + 5) / 6);
+    const auto itemCount = selectedCategory == "User Presets" ? userPresetFiles.size()
+                                                                : static_cast<int> (visible.size());
+    const auto pageCount = juce::jmax (1, (itemCount + 5) / 6);
     pageIndex = juce::jlimit (0, pageCount - 1, pageIndex);
 
     auto previous = juce::Rectangle<int> (getWidth() - 150, 12, 24, 24);
@@ -135,6 +164,23 @@ void PresetBrowserComponent::paint (juce::Graphics& g)
     g.setFont (juce::Font (10.5f, juce::Font::bold));
     g.drawText ("PAGE " + juce::String (pageIndex + 1) + " / " + juce::String (pageCount),
                 pageLabel, juce::Justification::centred);
+
+    const juce::String actionNames[] = { "SAVE", "IMPORT", "EXPORT" };
+    const int actionWidths[] = { 66, 72, 72 };
+    int actionX = 382;
+    for (int i = 0; i < 3; ++i)
+    {
+        auto action = juce::Rectangle<float> (static_cast<float> (actionX), 12.0f,
+                                               static_cast<float> (actionWidths[i]), 24.0f);
+        g.setColour (i == 0 ? withAlpha (palette.accent, 0.24f) : palette.field);
+        g.fillRoundedRectangle (action, 6.0f);
+        g.setColour (i == 0 ? palette.accentBright : palette.border);
+        g.drawRoundedRectangle (action, 6.0f, 1.0f);
+        g.setColour (palette.text);
+        g.setFont (juce::Font (9.5f, juce::Font::bold));
+        g.drawText (actionNames[i], action.toNearestInt(), juce::Justification::centred);
+        actionX += actionWidths[i] + 7;
+    }
 
     auto content = getLocalBounds().reduced (10);
     content.removeFromTop (48);
@@ -170,10 +216,44 @@ void PresetBrowserComponent::paint (juce::Graphics& g)
 
     if (selectedCategory == "User Presets")
     {
-        g.setColour (palette.muted);
-        g.setFont (juce::Font (14.0f));
-        g.drawFittedText ("USER PRESETS\nYour saved presets will appear here in a future update.\nFactory presets and current DAW state remain available.",
-                          grid, juce::Justification::centred, 3);
+        if (userPresetFiles.isEmpty())
+        {
+            g.setColour (palette.muted);
+            g.setFont (juce::Font (14.0f));
+            g.drawFittedText ("NO USER PRESETS YET\nPress SAVE to store your current guitar sound.\nUse IMPORT to add a .wlpreset file.",
+                              grid, juce::Justification::centred, 3);
+        }
+        else
+        {
+            const auto firstPreset = pageIndex * 6;
+            for (int cardIndex = 0; cardIndex < 6 && firstPreset + cardIndex < userPresetFiles.size(); ++cardIndex)
+            {
+                const auto file = userPresetFiles.getReference (firstPreset + cardIndex);
+                auto card = getCardBounds (cardIndex).toFloat();
+                const auto hue = static_cast<float> ((cardIndex * 43 + 24) % 110) / 360.0f;
+                const auto artwork = juce::Colour::fromHSV (hue, 0.32f, 0.48f, 1.0f);
+                g.setGradientFill (juce::ColourGradient (artwork.withAlpha (0.62f), card.getTopLeft(), palette.card, card.getBottomRight(), false));
+                g.fillRoundedRectangle (card, 8.0f);
+                g.setColour (palette.accentBright);
+                g.drawRoundedRectangle (card, 8.0f, 1.2f);
+                drawGuitarArtwork (g, card.reduced (5.0f, 4.0f).withTrimmedBottom (36.0f), palette.accentBright);
+                g.setColour (withAlpha (juce::Colours::black, 0.70f));
+                g.fillRoundedRectangle (juce::Rectangle<float> (card.getX() + 1.0f, card.getBottom() - 43.0f,
+                                                                 card.getWidth() - 2.0f, 42.0f), 7.0f);
+                g.setColour (palette.text);
+                g.setFont (juce::Font (12.5f, juce::Font::bold));
+                g.drawFittedText (file.getFileNameWithoutExtension(),
+                                  juce::Rectangle<int> (static_cast<int> (card.getX() + 9), static_cast<int> (card.getBottom() - 38),
+                                                        static_cast<int> (card.getWidth() - 16), 18),
+                                  juce::Justification::centredLeft, 1);
+                g.setColour (palette.muted);
+                g.setFont (juce::Font (10.0f));
+                g.drawText ("USER PRESET  •  WOODLINE",
+                            juce::Rectangle<int> (static_cast<int> (card.getX() + 9), static_cast<int> (card.getBottom() - 20),
+                                                  static_cast<int> (card.getWidth() - 16), 15),
+                            juce::Justification::centredLeft, true);
+            }
+        }
     }
     else if (visible.empty())
     {
@@ -226,6 +306,10 @@ void PresetBrowserComponent::paint (juce::Graphics& g)
     const auto& all = getWoodlinePresets();
     const auto safeSelected = juce::jlimit (0, static_cast<int> (all.size()) - 1, selectedPreset);
     const auto& selected = all[static_cast<size_t> (safeSelected)];
+    const auto userSelectionIndex = juce::jlimit (0, juce::jmax (0, userPresetFiles.size() - 1),
+                                                   pageIndex * 6);
+    const auto userSelectionName = userPresetFiles.isEmpty() ? juce::String ("No user preset selected")
+        : userPresetFiles.getReference (userSelectionIndex).getFileNameWithoutExtension();
     auto info = details.reduced (12);
     g.setColour (palette.muted);
     g.setFont (juce::Font (10.0f, juce::Font::bold));
@@ -233,14 +317,19 @@ void PresetBrowserComponent::paint (juce::Graphics& g)
     info.removeFromTop (5);
     g.setColour (palette.text);
     g.setFont (juce::Font (16.0f, juce::Font::bold));
-    g.drawFittedText (selected.name, info.removeFromTop (38), juce::Justification::centredLeft, 2);
+    g.drawFittedText (selectedCategory == "User Presets" ? userSelectionName : selected.name,
+                      info.removeFromTop (38), juce::Justification::centredLeft, 2);
     g.setColour (palette.muted);
     g.setFont (juce::Font (10.5f));
-    g.drawFittedText (selected.description, info.removeFromTop (58), juce::Justification::topLeft, 4);
+    g.drawFittedText (selectedCategory == "User Presets"
+                          ? "Your custom Woodline sound. Select a card to load it into the instrument."
+                          : selected.description,
+                      info.removeFromTop (58), juce::Justification::topLeft, 4);
     info.removeFromTop (3);
     g.setColour (palette.accentBright);
     g.setFont (juce::Font (10.5f, juce::Font::bold));
-    g.drawText (selected.category + "  •  " + (selected.strumStyle == 4 ? "FINGERSTYLE" : "STRUM FEEL"),
+    g.drawText (selectedCategory == "User Presets" ? "USER PRESET FILE"
+                      : selected.category + "  •  " + (selected.strumStyle == 4 ? "FINGERSTYLE" : "STRUM FEEL"),
                 info.removeFromTop (18), juce::Justification::centredLeft);
 
     auto patternArea = info.removeFromTop (51).reduced (2, 4);
@@ -287,10 +376,27 @@ void PresetBrowserComponent::mouseDown (const juce::MouseEvent& event)
 {
     const auto point = event.getPosition();
     const auto visible = getVisiblePresets();
-    const auto pageCount = juce::jmax (1, (static_cast<int> (visible.size()) + 5) / 6);
+    const auto itemCount = selectedCategory == "User Presets" ? userPresetFiles.size()
+                                                                : static_cast<int> (visible.size());
+    const auto pageCount = juce::jmax (1, (itemCount + 5) / 6);
 
     if (point.y >= 8 && point.y <= 42)
     {
+        if (point.x >= 382 && point.x < 448)
+        {
+            if (onSaveRequested) onSaveRequested();
+            return;
+        }
+        if (point.x >= 455 && point.x < 527)
+        {
+            if (onImportRequested) onImportRequested();
+            return;
+        }
+        if (point.x >= 534 && point.x < 606)
+        {
+            if (onExportRequested) onExportRequested();
+            return;
+        }
         if (point.x >= getWidth() - 150 && point.x <= getWidth() - 126)
             pageIndex = juce::jmax (0, pageIndex - 1);
         else if (point.x >= getWidth() - 35 && point.x <= getWidth() - 11)
@@ -310,6 +416,22 @@ void PresetBrowserComponent::mouseDown (const juce::MouseEvent& event)
             selectedCategory = browserCategories[row];
             pageIndex = 0;
             repaint();
+        }
+        return;
+    }
+
+    if (selectedCategory == "User Presets")
+    {
+        const auto firstPreset = pageIndex * 6;
+        for (int i = 0; i < 6 && firstPreset + i < userPresetFiles.size(); ++i)
+        {
+            if (getCardBounds (i).contains (point))
+            {
+                if (onUserPresetSelected)
+                    onUserPresetSelected (userPresetFiles.getReference (firstPreset + i));
+                repaint();
+                return;
+            }
         }
         return;
     }
