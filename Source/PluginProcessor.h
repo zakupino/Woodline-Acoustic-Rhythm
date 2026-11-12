@@ -39,6 +39,8 @@ public:
     void loadPreset (int presetIndex);
     void clearKeySwitchOverride() noexcept { keySwitchPattern.store (-1); }
     float getOutputLevel() const noexcept { return outputLevel.load(); }
+    float getDisplayTempo() const noexcept { return displayTempo.load(); }
+    static int getPatternStepForDisplay (int pattern, int step) noexcept;
 
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
@@ -82,6 +84,7 @@ private:
         int voicing = 0;
         int strumStyle = 0;
         int pattern = 0;
+        int keySelect = 0;
         bool latch = false;
         bool loopEnabled = true;
         bool dawSync = true;
@@ -102,6 +105,7 @@ private:
     int nextVoice = 0;
     double currentSampleRate = 44100.0;
     std::atomic<float> outputLevel { 0.0f };
+    std::atomic<float> displayTempo { 100.0f };
 
     int currentRootNote = -1;
     int lastHeldNote = -1;
