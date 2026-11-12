@@ -527,6 +527,84 @@ void WoodlineAudioProcessor::loadPreset (int presetIndex)
     applyPresetParameter ("loopPattern", static_cast<float> (p.loopPattern));
 }
 
+juce::File WoodlineAudioProcessor::getUserPresetDirectory() const
+{
+    return juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
+        .getChildFile ("Woodline Audio")
+        .getChildFile ("Woodline Acoustic Rhythm")
+        .getChildFile ("Presets");
+}
+
+juce::Array<juce::File> WoodlineAudioProcessor::getUserPresetFiles() const
+{
+    auto directory = getUserPresetDirectory();
+    directory.createDirectory();
+    auto files = directory.findChildFiles (juce::File::findFiles, false, "*.wlpreset");
+    files.sort();
+    return files;
+}
+
+bool WoodlineAudioProcessor::saveUserPreset (const juce::File& requestedFile,
+                                               const juce::String& presetName) const
+{
+    if (presetName.trim().isEmpty())
+        return false;
+
+    auto file = requestedFile;
+    if (file.getFileExtension().compareIgnoreCase (".wlpreset") != 0)
+        file = file.withFileExtension ("wlpreset");
+
+    if (file.getParentDirectory().createDirectory().failed())
+        return false;
+
+    const auto state = parameters.copyState();
+    std::unique_ptr<juce::XmlElement> stateXml (state.createXml());
+    if (stateXml == nullptr)
+        return false;
+
+    juce::XmlElement preset ("WOODLINE_USER_PRESET");
+    preset.setAttribute ("formatVersion", 1);
+    preset.setAttribute ("name", presetName.trim());
+    preset.addChildElement (stateXml.release());
+
+    return file.replaceWithText (preset.toString());
+}
+
+bool WoodlineAudioProcessor::loadUserPreset (const juce::File& file)
+{
+    if (! file.existsAsFile())
+        return false;
+
+    auto xml = juce::XmlDocument::parse (file);
+    if (xml == nullptr || ! xml->hasTagName ("WOODLINE_USER_PRESET"))
+        return false;
+
+    auto* stateElement = xml->getFirstChildElement();
+    if (stateElement == nullptr)
+        return false;
+
+    auto state = juce::ValueTree::fromXml (*stateElement);
+    const auto expectedType = parameters.copyState().getType();
+    if (! state.isValid() || state.getType() != expectedType)
+        return false;
+
+    parameters.replaceState (state);
+
+    // Imported files are copied into the Woodline User Presets folder so
+    // they remain available in the browser on the next plug-in launch.
+    const auto userDirectory = getUserPresetDirectory();
+    if (file.getFullPathName() != userDirectory.getChildFile (file.getFileName()).getFullPathName())
+    {
+        userDirectory.createDirectory();
+        auto destination = userDirectory.getChildFile (file.getFileName());
+        if (destination.existsAsFile())
+            destination = userDirectory.getNonexistentChildFile (file.getFileNameWithoutExtension(),
+                                                                  ".wlpreset", false);
+        file.copyFileTo (destination);
+    }
+    return true;
+}
+
 void WoodlineAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     const auto state = parameters.copyState();
