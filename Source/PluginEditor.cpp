@@ -15,19 +15,11 @@ namespace
 
 PresetBrowserComponent::PresetBrowserComponent()
 {
-    addAndMakeVisible (searchBox);
-    searchBox.setTextToShowWhenEmpty ("Search presets, styles, BPM...", juce::Colours::lightgrey);
-    searchBox.setFont (juce::Font (14.0f));
-    searchBox.onTextChange = [this] { repaint(); };
 }
 
 void PresetBrowserComponent::setPalette (const WoodlinePalette& newPalette)
 {
     palette = newPalette;
-    searchBox.setColour (juce::TextEditor::backgroundColourId, palette.field);
-    searchBox.setColour (juce::TextEditor::textColourId, palette.text);
-    searchBox.setColour (juce::TextEditor::outlineColourId, palette.border);
-    searchBox.setColour (juce::TextEditor::focusedOutlineColourId, palette.accent);
     repaint();
 }
 
@@ -44,28 +36,20 @@ void PresetBrowserComponent::setOnPresetSelected (std::function<void (int)> call
 
 void PresetBrowserComponent::resized()
 {
-    searchBox.setBounds (getLocalBounds().reduced (9).removeFromTop (39).withTrimmedRight (350));
 }
 
 std::vector<int> PresetBrowserComponent::getVisiblePresets() const
 {
     std::vector<int> visible;
     const auto& all = getWoodlinePresets();
-    const auto query = searchBox.getText().trim().toLowerCase();
     for (int i = 0; i < static_cast<int> (all.size()); ++i)
     {
         const auto& preset = all[static_cast<size_t> (i)];
         const bool categoryMatch = selectedCategory == "All Presets" || preset.category == selectedCategory
             || (selectedCategory == "Favorites" && (i == 0 || i == 12 || i == 24 || i == 36 || i == 48));
-        const bool queryMatch = query.isEmpty() || preset.name.toLowerCase().contains (query)
-            || preset.category.toLowerCase().contains (query)
-            || juce::String (preset.bpm).contains (query);
-        if (categoryMatch && queryMatch && selectedCategory != "User Presets")
+        if (categoryMatch && selectedCategory != "User Presets")
             visible.push_back (i);
     }
-    if (sortByTempo)
-        std::stable_sort (visible.begin(), visible.end(), [&all] (int a, int b)
-        { return all[static_cast<size_t> (a)].bpm < all[static_cast<size_t> (b)].bpm; });
     return visible;
 }
 
@@ -75,6 +59,7 @@ juce::Rectangle<int> PresetBrowserComponent::getGridBounds() const
     content.removeFromTop (48);
     content.removeFromLeft (154);
     content.removeFromRight (208);
+    content.removeFromBottom (27);
     return content.reduced (4, 3);
 }
 
@@ -121,28 +106,35 @@ void PresetBrowserComponent::paint (juce::Graphics& g)
     g.setColour (palette.border);
     g.drawRoundedRectangle (bounds.reduced (0.5f), 12.0f, 1.0f);
 
-    auto top = getLocalBounds().reduced (10);
-    top.removeFromTop (42);
-    auto filterArea = top.removeFromTop (2).toFloat();
-    juce::ignoreUnused (filterArea);
-    const auto searchRight = getWidth() - 360;
-    auto chipX = juce::jmax (searchRight, 170);
-    const juce::String chips[] = { "ALL", "ACOUSTIC", "RHYTHM", sortByTempo ? "BPM ↑" : "BPM" };
-    for (int i = 0; i < 4; ++i)
-    {
-        const int widths[] = { 56, 90, 82, 75 };
-        auto chip = juce::Rectangle<float> (static_cast<float> (chipX), 13.0f, static_cast<float> (widths[i]), 25.0f);
-        g.setColour (i == 0 ? withAlpha (palette.accent, 0.25f) : palette.field);
-        g.fillRoundedRectangle (chip, 12.0f);
-        g.setColour (i == 0 ? palette.accentBright : palette.muted);
-        g.drawRoundedRectangle (chip, 12.0f, 1.0f);
-        g.setFont (juce::Font (10.5f, juce::Font::bold));
-        g.drawFittedText (chips[i], chip.toNearestInt(), juce::Justification::centred, 1);
-        chipX += widths[i] + 8;
-    }
+    // A compact library header replaces the unused search bar.
+    g.setColour (palette.text);
+    g.setFont (juce::Font (13.0f, juce::Font::bold));
+    g.drawText ("GUITAR PRESET LIBRARY", 20, 10, 220, 18, juce::Justification::centredLeft);
     g.setColour (palette.muted);
-    g.setFont (juce::Font (11.0f, juce::Font::bold));
-    g.drawText ("60 FACTORY PRESETS", getWidth() - 207, 18, 190, 18, juce::Justification::centredRight);
+    g.setFont (juce::Font (10.0f));
+    g.drawText ("Browse every playing style • rhythm follows your DAW tempo", 20, 27, 340, 14,
+                juce::Justification::centredLeft);
+
+    const auto visible = getVisiblePresets();
+    const auto pageCount = juce::jmax (1, (static_cast<int> (visible.size()) + 5) / 6);
+    pageIndex = juce::jlimit (0, pageCount - 1, pageIndex);
+
+    auto previous = juce::Rectangle<int> (getWidth() - 150, 12, 24, 24);
+    auto pageLabel = juce::Rectangle<int> (getWidth() - 121, 13, 82, 22);
+    auto next = juce::Rectangle<int> (getWidth() - 35, 12, 24, 24);
+    g.setColour (palette.field);
+    g.fillRoundedRectangle (previous.toFloat(), 6.0f);
+    g.fillRoundedRectangle (next.toFloat(), 6.0f);
+    g.setColour (palette.border);
+    g.drawRoundedRectangle (previous.toFloat(), 6.0f, 1.0f);
+    g.drawRoundedRectangle (next.toFloat(), 6.0f, 1.0f);
+    g.setColour (palette.text);
+    g.setFont (juce::Font (16.0f, juce::Font::bold));
+    g.drawText ("‹", previous, juce::Justification::centred);
+    g.drawText ("›", next, juce::Justification::centred);
+    g.setFont (juce::Font (10.5f, juce::Font::bold));
+    g.drawText ("PAGE " + juce::String (pageIndex + 1) + " / " + juce::String (pageCount),
+                pageLabel, juce::Justification::centred);
 
     auto content = getLocalBounds().reduced (10);
     content.removeFromTop (48);
@@ -151,12 +143,13 @@ void PresetBrowserComponent::paint (juce::Graphics& g)
     auto details = content.removeFromRight (198);
     content.removeFromLeft (8);
     auto grid = content.reduced (2, 2);
+    grid.removeFromBottom (27);
 
     g.setColour (palette.field);
     g.fillRoundedRectangle (categories.toFloat(), 8.0f);
     g.setColour (palette.muted);
-    g.setFont (juce::Font (11.0f, juce::Font::bold));
-    g.drawText ("LIBRARY", categories.reduced (12).removeFromTop (25), juce::Justification::centredLeft);
+    g.setFont (juce::Font (10.5f, juce::Font::bold));
+    g.drawText ("GUITAR STYLES", categories.reduced (12).removeFromTop (25), juce::Justification::centredLeft);
 
     int categoryY = categories.getY() + 34;
     for (int i = 0; i < browserCategories.size(); ++i)
@@ -171,29 +164,29 @@ void PresetBrowserComponent::paint (juce::Graphics& g)
             g.fillRoundedRectangle (juce::Rectangle<float> (row.getX(), row.getY() + 4, 3.0f, row.getHeight() - 8), 2.0f);
         }
         g.setColour (active ? palette.text : palette.muted);
-        g.setFont (juce::Font (12.0f, active ? juce::Font::bold : juce::Font::plain));
+        g.setFont (juce::Font (11.5f, active ? juce::Font::bold : juce::Font::plain));
         g.drawText (browserCategories[i], row.withTrimmedLeft (12), juce::Justification::centredLeft, true);
     }
 
-    const auto visible = getVisiblePresets();
     if (selectedCategory == "User Presets")
     {
         g.setColour (palette.muted);
         g.setFont (juce::Font (14.0f));
-        g.drawFittedText ("Your saved user presets will appear here in a future content update.\nDAW project state already recalls the current plug-in settings.",
+        g.drawFittedText ("USER PRESETS\nYour saved presets will appear here in a future update.\nFactory presets and current DAW state remain available.",
                           grid, juce::Justification::centred, 3);
     }
     else if (visible.empty())
     {
         g.setColour (palette.muted);
         g.setFont (juce::Font (14.0f));
-        g.drawFittedText ("No presets match this search.", grid, juce::Justification::centred, 1);
+        g.drawFittedText ("No presets in this view.", grid, juce::Justification::centred, 1);
     }
     else
     {
-        for (int cardIndex = 0; cardIndex < juce::jmin (6, static_cast<int> (visible.size())); ++cardIndex)
+        const auto firstPreset = pageIndex * 6;
+        for (int cardIndex = 0; cardIndex < 6 && firstPreset + cardIndex < static_cast<int> (visible.size()); ++cardIndex)
         {
-            const auto presetIndex = visible[static_cast<size_t> (cardIndex)];
+            const auto presetIndex = visible[static_cast<size_t> (firstPreset + cardIndex)];
             const auto& preset = getWoodlinePresets()[static_cast<size_t> (presetIndex)];
             auto card = getCardBounds (cardIndex).toFloat();
             const auto selected = presetIndex == selectedPreset;
@@ -204,16 +197,17 @@ void PresetBrowserComponent::paint (juce::Graphics& g)
             g.setColour (selected ? palette.accentBright : palette.border);
             g.drawRoundedRectangle (card, 8.0f, selected ? 2.0f : 1.0f);
             drawGuitarArtwork (g, card.reduced (5.0f, 4.0f).withTrimmedBottom (36.0f), palette.accentBright);
-            g.setColour (withAlpha (juce::Colours::black, 0.67f));
+            g.setColour (withAlpha (juce::Colours::black, 0.68f));
             g.fillRoundedRectangle (juce::Rectangle<float> (card.getX() + 1.0f, card.getBottom() - 43.0f,
                                                              card.getWidth() - 2.0f, 42.0f), 7.0f);
             g.setColour (palette.text);
-            g.setFont (juce::Font (13.0f, juce::Font::bold));
+            g.setFont (juce::Font (12.5f, juce::Font::bold));
             g.drawText (preset.name, juce::Rectangle<int> (static_cast<int> (card.getX() + 9), static_cast<int> (card.getBottom() - 38),
                                                            static_cast<int> (card.getWidth() - 16), 18), juce::Justification::centredLeft, true);
             g.setColour (palette.muted);
-            g.setFont (juce::Font (10.5f));
-            g.drawText (juce::String (preset.bpm) + " BPM   •   " + preset.category,
+            g.setFont (juce::Font (10.0f));
+            const auto articulation = preset.strumStyle == 4 ? "Fingerpicked" : "Strummed";
+            g.drawText (preset.category + "  •  " + articulation,
                         juce::Rectangle<int> (static_cast<int> (card.getX() + 9), static_cast<int> (card.getBottom() - 20),
                                               static_cast<int> (card.getWidth() - 16), 15), juce::Justification::centredLeft, true);
             if (selected)
@@ -224,6 +218,7 @@ void PresetBrowserComponent::paint (juce::Graphics& g)
         }
     }
 
+    // Details panel includes a useful pattern preview instead of fake BPM/waveform metadata.
     g.setColour (palette.field);
     g.fillRoundedRectangle (details.toFloat(), 8.0f);
     g.setColour (palette.border);
@@ -231,61 +226,79 @@ void PresetBrowserComponent::paint (juce::Graphics& g)
     const auto& all = getWoodlinePresets();
     const auto safeSelected = juce::jlimit (0, static_cast<int> (all.size()) - 1, selectedPreset);
     const auto& selected = all[static_cast<size_t> (safeSelected)];
-    auto info = details.reduced (13);
+    auto info = details.reduced (12);
     g.setColour (palette.muted);
-    g.setFont (juce::Font (10.5f, juce::Font::bold));
-    g.drawText ("PRESET INFO", info.removeFromTop (20), juce::Justification::centredLeft);
-    info.removeFromTop (7);
+    g.setFont (juce::Font (10.0f, juce::Font::bold));
+    g.drawText ("SELECTED PRESET", info.removeFromTop (18), juce::Justification::centredLeft);
+    info.removeFromTop (5);
     g.setColour (palette.text);
-    g.setFont (juce::Font (18.0f, juce::Font::bold));
-    g.drawFittedText (selected.name, info.removeFromTop (46), juce::Justification::centredLeft, 2);
+    g.setFont (juce::Font (16.0f, juce::Font::bold));
+    g.drawFittedText (selected.name, info.removeFromTop (38), juce::Justification::centredLeft, 2);
     g.setColour (palette.muted);
-    g.setFont (juce::Font (11.5f));
+    g.setFont (juce::Font (10.5f));
     g.drawFittedText (selected.description, info.removeFromTop (58), juce::Justification::topLeft, 4);
-    info.removeFromTop (7);
+    info.removeFromTop (3);
     g.setColour (palette.accentBright);
-    g.setFont (juce::Font (12.0f, juce::Font::bold));
-    g.drawText (selected.category + "   •   " + juce::String (selected.bpm) + " BPM", info.removeFromTop (20), juce::Justification::centredLeft);
+    g.setFont (juce::Font (10.5f, juce::Font::bold));
+    g.drawText (selected.category + "  •  " + (selected.strumStyle == 4 ? "FINGERSTYLE" : "STRUM FEEL"),
+                info.removeFromTop (18), juce::Justification::centredLeft);
 
-    auto wave = info.removeFromTop (48).reduced (2, 4);
-    g.setColour (withAlpha (palette.accent, 0.25f));
-    g.fillRoundedRectangle (wave.toFloat(), 5.0f);
-    g.setColour (palette.accentBright);
-    for (int i = 0; i < 36; ++i)
+    auto patternArea = info.removeFromTop (51).reduced (2, 4);
+    g.setColour (withAlpha (palette.accent, 0.18f));
+    g.fillRoundedRectangle (patternArea.toFloat(), 5.0f);
+    const auto pattern = selected.loopPattern;
+    for (int step = 0; step < 16; ++step)
     {
-        const auto x = static_cast<float> (wave.getX()) + 4.0f + static_cast<float> (i) * (static_cast<float> (wave.getWidth() - 8) / 36.0f);
-        const auto h = 4.0f + static_cast<float> ((i * 11 + selectedPreset * 7) % 19);
-        g.drawLine (x, wave.getCentreY() - h, x, wave.getCentreY() + h, 1.5f);
+        const auto event = WoodlineAudioProcessor::getPatternStepForDisplay (pattern, step);
+        const auto x = static_cast<float> (patternArea.getX() + 5)
+                     + static_cast<float> (step) * static_cast<float> (patternArea.getWidth() - 10) / 16.0f;
+        const auto centreY = static_cast<float> (patternArea.getCentreY());
+        if (event >= 0)
+        {
+            g.setColour (event == 2 ? palette.accentBright : palette.text);
+            const auto barHeight = event == 2 ? 13.0f : (event == 0 ? 19.0f : 12.0f);
+            g.fillRoundedRectangle (x, centreY - barHeight * 0.5f, 3.0f, barHeight, 1.3f);
+        }
+        else
+        {
+            g.setColour (withAlpha (palette.muted, 0.45f));
+            g.fillEllipse (x, centreY - 1.5f, 3.0f, 3.0f);
+        }
     }
-    auto loadButton = info.removeFromBottom (34);
+
+    auto loadButton = info.removeFromBottom (32);
     g.setGradientFill (juce::ColourGradient (palette.accent, loadButton.toFloat().getTopLeft(), palette.accentBright,
                                               loadButton.toFloat().getBottomRight(), false));
     g.fillRoundedRectangle (loadButton.toFloat(), 7.0f);
     g.setColour (juce::Colours::white);
-    g.setFont (juce::Font (12.0f, juce::Font::bold));
+    g.setFont (juce::Font (11.5f, juce::Font::bold));
     g.drawText ("LOAD PRESET", loadButton, juce::Justification::centred);
+
+    // Page navigation is also labelled so all 60 factory presets remain reachable.
+    auto pageArea = juce::Rectangle<int> (categories.getRight() + 15, getHeight() - 27,
+                                          getWidth() - categories.getRight() - 230, 20);
+    g.setColour (palette.muted);
+    g.setFont (juce::Font (9.5f));
+    g.drawText ("ALL FACTORY PRESETS  •  " + juce::String (visible.size()) + " IN THIS STYLE",
+                pageArea, juce::Justification::centredLeft);
 }
 
 void PresetBrowserComponent::mouseDown (const juce::MouseEvent& event)
 {
     const auto point = event.getPosition();
-    if (point.y >= 8 && point.y <= 43)
+    const auto visible = getVisiblePresets();
+    const auto pageCount = juce::jmax (1, (static_cast<int> (visible.size()) + 5) / 6);
+
+    if (point.y >= 8 && point.y <= 42)
     {
-        int chipX = juce::jmax (getWidth() - 360, 170);
-        const int widths[] = { 56, 90, 82, 75 };
-        for (int i = 0; i < 4; ++i)
-        {
-            if (point.x >= chipX && point.x <= chipX + widths[i])
-            {
-                if (i == 0 || i == 1) selectedCategory = "All Presets";
-                if (i == 2) selectedCategory = "Strumming";
-                if (i == 3) sortByTempo = ! sortByTempo;
-                repaint();
-                return;
-            }
-            chipX += widths[i] + 8;
-        }
+        if (point.x >= getWidth() - 150 && point.x <= getWidth() - 126)
+            pageIndex = juce::jmax (0, pageIndex - 1);
+        else if (point.x >= getWidth() - 35 && point.x <= getWidth() - 11)
+            pageIndex = juce::jmin (pageCount - 1, pageIndex + 1);
+        repaint();
+        return;
     }
+
     auto content = getLocalBounds().reduced (10);
     content.removeFromTop (48);
     auto categories = content.removeFromLeft (145);
@@ -295,17 +308,18 @@ void PresetBrowserComponent::mouseDown (const juce::MouseEvent& event)
         if (juce::isPositiveAndBelow (row, browserCategories.size()))
         {
             selectedCategory = browserCategories[row];
+            pageIndex = 0;
             repaint();
         }
         return;
     }
 
-    const auto visible = getVisiblePresets();
-    for (int i = 0; i < juce::jmin (6, static_cast<int> (visible.size())); ++i)
+    const auto firstPreset = pageIndex * 6;
+    for (int i = 0; i < 6 && firstPreset + i < static_cast<int> (visible.size()); ++i)
     {
         if (getCardBounds (i).contains (point))
         {
-            selectedPreset = visible[static_cast<size_t> (i)];
+            selectedPreset = visible[static_cast<size_t> (firstPreset + i)];
             if (onPresetSelected)
                 onPresetSelected (selectedPreset);
             repaint();
