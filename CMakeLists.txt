@@ -62,6 +62,9 @@ target_link_libraries(Woodline
         juce::juce_recommended_warning_flags
 )
 
+# Generate the Projucer-compatible JuceHeader.h included by the source files.
+juce_generate_juce_header(Woodline)
+
 if (MSVC)
     target_compile_options(Woodline PRIVATE /W4 /permissive-)
 else()
