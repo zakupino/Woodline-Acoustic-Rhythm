@@ -39,7 +39,7 @@ public:
     void loadPreset (int presetIndex);
     juce::File getUserPresetDirectory() const;
     juce::Array<juce::File> getUserPresetFiles() const;
-    bool saveUserPreset (const juce::File& file, const juce::String& presetName) const;
+    bool saveUserPreset (const juce::File& file, const juce::String& presetName);
     bool loadUserPreset (const juce::File& file);
     void clearKeySwitchOverride() noexcept { keySwitchPattern.store (-1); }
     float getOutputLevel() const noexcept { return outputLevel.load(); }
