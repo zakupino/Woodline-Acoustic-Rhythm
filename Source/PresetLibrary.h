@@ -7,7 +7,6 @@ struct WoodlinePreset
     juce::String name;
     juce::String category;
     juce::String description;
-    int bpm = 100;
     float strumSpeed = 1.0f;
     float humanize = 24.0f;
     float pickAttack = 55.0f;
@@ -19,6 +18,7 @@ struct WoodlinePreset
     float delay = 8.0f;
     float chorus = 6.0f;
     float width = 72.0f;
+    int strumStyle = 0;
     int chordMode = 0;
     int voicing = 0;
     int loopPattern = 0;
