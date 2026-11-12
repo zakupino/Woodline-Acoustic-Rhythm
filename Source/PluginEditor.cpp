@@ -37,6 +37,7 @@ void PresetBrowserComponent::setOnPresetSelected (std::function<void (int)> call
 void PresetBrowserComponent::setUserPresetFiles (const juce::Array<juce::File>& files)
 {
     userPresetFiles = files;
+    selectedUserPresetIndex = juce::jlimit (0, juce::jmax (0, userPresetFiles.size() - 1), selectedUserPresetIndex);
     pageIndex = 0;
     repaint();
 }
@@ -307,7 +308,7 @@ void PresetBrowserComponent::paint (juce::Graphics& g)
     const auto safeSelected = juce::jlimit (0, static_cast<int> (all.size()) - 1, selectedPreset);
     const auto& selected = all[static_cast<size_t> (safeSelected)];
     const auto userSelectionIndex = juce::jlimit (0, juce::jmax (0, userPresetFiles.size() - 1),
-                                                   pageIndex * 6);
+                                                   selectedUserPresetIndex);
     const auto userSelectionName = userPresetFiles.isEmpty() ? juce::String ("No user preset selected")
         : userPresetFiles.getReference (userSelectionIndex).getFileNameWithoutExtension();
     auto info = details.reduced (12);
@@ -427,8 +428,9 @@ void PresetBrowserComponent::mouseDown (const juce::MouseEvent& event)
         {
             if (getCardBounds (i).contains (point))
             {
+                selectedUserPresetIndex = firstPreset + i;
                 if (onUserPresetSelected)
-                    onUserPresetSelected (userPresetFiles.getReference (firstPreset + i));
+                    onUserPresetSelected (userPresetFiles.getReference (selectedUserPresetIndex));
                 repaint();
                 return;
             }
