@@ -8,16 +8,30 @@ namespace
     constexpr int stepsPerPattern = 16;
     constexpr int rest = -1;
     const std::array<std::array<int, stepsPerPattern>, patternCount> rhythmPatterns {{
-        {{ 0, rest, 1, rest, 0, rest, 1, rest, 0, rest, 1, rest, 0, 1, rest, 1 }},
-        {{ 0, rest, rest, 1, 0, rest, rest, 1, 0, rest, 1, rest, 0, rest, rest, 1 }},
-        {{ 0, rest, 1, 1, rest, 1, rest, 1, 0, rest, 1, 1, rest, 1, rest, 1 }},
-        {{ 0, rest, rest, rest, 0, rest, 1, rest, 0, rest, rest, 1, 0, rest, 1, rest }},
-        {{ 0, rest, 1, rest, rest, 1, rest, 1, 0, rest, 1, rest, rest, 1, rest, 1 }},
-        {{ 0, 1, rest, 1, 0, 1, rest, 1, 0, 1, rest, 1, 0, 1, rest, 1 }},
-        {{ 0, rest, rest, 1, rest, 1, rest, 1, 0, rest, rest, 1, rest, 1, rest, 1 }},
-        {{ 0, rest, 1, rest, 0, rest, 1, 1, 0, rest, 1, rest, 0, rest, 1, rest }}
+        // Pop eighth-note groove: D - D U - U D U
+        {{ 0, rest, 0, 1, rest, 1, 0, 1, 0, rest, 0, 1, rest, 1, 0, 1 }},
+        // Ballad: spacious down/up strokes with soft anticipations
+        {{ 0, rest, rest, rest, 0, rest, 1, rest, 0, rest, rest, rest, 0, rest, 1, rest }},
+        // Straight folk eighths: down/up alternation
+        {{ 0, rest, 1, rest, 0, rest, 1, rest, 0, rest, 1, rest, 0, rest, 1, rest }},
+        // Country boom-chuck: bass note on 1 and 3, brushed chord on 2 and 4
+        {{ 2, rest, rest, rest, 1, rest, rest, rest, 2, rest, rest, rest, 1, rest, rest, rest }},
+        // Indie syncopation: off-beat accents and anticipations
+        {{ 0, rest, 1, 0, rest, 1, rest, 1, 0, rest, 1, rest, 0, rest, 1, 0 }},
+        // Fingerpicked / arpeggiated pulse
+        {{ 0, rest, rest, rest, 1, rest, rest, rest, 0, rest, rest, rest, 1, rest, rest, rest }},
+        // Rock quarter-note drive
+        {{ 0, rest, rest, rest, 0, rest, rest, rest, 0, rest, rest, rest, 0, rest, rest, rest }},
+        // Continuous sixteenth-note down/up motion
+        {{ 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0 }}
     }};
 
+}
+
+int WoodlineAudioProcessor::getPatternStepForDisplay (int pattern, int step) noexcept
+{
+    return rhythmPatterns[static_cast<size_t> (juce::jlimit (0, patternCount - 1, pattern))]
+                         [static_cast<size_t> (juce::jlimit (0, stepsPerPattern - 1, step))];
 }
 
 WoodlineAudioProcessor::WoodlineAudioProcessor()
@@ -63,7 +77,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout WoodlineAudioProcessor::crea
 
     choiceParam ("strumStyle", "Strum Style", { "Auto", "Down", "Up", "Alternate", "Fingerpick" }, 0);
     choiceParam ("chordMode", "Chord Mode", { "Major", "Minor", "7th", "Maj7", "Sus2", "Power" }, 0);
-    choiceParam ("voicing", "Voicing", { "Open", "Barre", "Power" }, 0);
+    choiceParam ("voicing", "Voicing", { "Open", "Barre", "Power", "Solo" }, 0);
+    choiceParam ("keySelect", "Key", { "Follow MIDI", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" }, 0);
     choiceParam ("loopPattern", "Rhythm Pattern", { "Acoustic Pop 01", "Folk 02", "Indie 03", "Ballad 04", "Country 05", "Sixteenth 06", "Soft 07", "Driving 08" }, 0);
     choiceParam ("theme", "Interface Theme", { "Studio Dark", "Soft Light", "Ocean Blue", "Forest Green", "Aurora Violet", "Ember Gradient" }, 0);
 
@@ -181,6 +196,7 @@ void WoodlineAudioProcessor::readParameters (RenderParameters& p) noexcept
     p.voicing = static_cast<int> (get ("voicing", 0.0f));
     p.strumStyle = static_cast<int> (get ("strumStyle", 0.0f));
     p.pattern = static_cast<int> (get ("loopPattern", 0.0f));
+    p.keySelect = static_cast<int> (get ("keySelect", 0.0f));
     p.latch = get ("latch", 0.0f) >= 0.5f;
     p.loopEnabled = get ("loopEnabled", 1.0f) >= 0.5f;
     p.dawSync = get ("dawSync", 1.0f) >= 0.5f;
@@ -272,15 +288,32 @@ void WoodlineAudioProcessor::beginStrum (int direction, float velocity, const Re
     if (p.voicing == 1)
         root = juce::jmax (36, root - 12);
 
-    strumNoteCount = (p.voicing == 2 ? 5 : 6);
-    for (int i = 0; i < strumNoteCount; ++i)
-        strumNotes[static_cast<size_t> (i)] = juce::jlimit (28, 88, root + intervals[i]);
+    // Follow the incoming MIDI root by default. A manually selected key
+    // changes the chord root while keeping the incoming octave.
+    if (p.keySelect > 0)
+        root = (root / 12) * 12 + (p.keySelect - 1);
 
-    strumDirection = direction;
-    if (p.strumStyle == 1) strumDirection = 0;
-    if (p.strumStyle == 2) strumDirection = 1;
-    if (p.strumStyle == 3) strumDirection = (patternStep % 2 == 0 ? 0 : 1);
-    if (p.strumStyle == 4) strumDirection = 0;
+    const auto bassOnly = (direction == 2);
+    strumNoteCount = (p.voicing == 3 ? 1 : p.voicing == 2 ? 5 : 6);
+    if (bassOnly || p.voicing == 3)
+    {
+        strumNoteCount = 1;
+        strumNotes[0] = juce::jlimit (28, 88, root);
+    }
+    else
+    {
+        for (int i = 0; i < strumNoteCount; ++i)
+            strumNotes[static_cast<size_t> (i)] = juce::jlimit (28, 88, root + intervals[i]);
+    }
+
+    strumDirection = bassOnly ? 0 : direction;
+    if (! bassOnly && p.voicing != 3)
+    {
+        if (p.strumStyle == 1) strumDirection = 0;
+        if (p.strumStyle == 2) strumDirection = 1;
+        if (p.strumStyle == 3) strumDirection = (patternStep % 2 == 0 ? 0 : 1);
+        if (p.strumStyle == 4) strumDirection = 0;
+    }
     strumNoteIndex = 0;
     if (strumDirection == 1)
         strumNoteIndex = strumNoteCount - 1;
@@ -308,7 +341,13 @@ void WoodlineAudioProcessor::triggerNextStrumNote (const RenderParameters& p) no
         --strumNoteIndex;
     else
         ++strumNoteIndex;
-    const auto baseDelayMs = p.strumStyle == 4 ? 23.0f : 1.4f + (2.0f - p.strumSpeed) * 4.4f;
+    // This control is only the roll time from string to string.
+    // At the slow end each string is clearly articulated; at the fast end
+    // they form a tight brush. It never changes the DAW-synced beat grid.
+    const auto speedPosition = (juce::jlimit (0.5f, 2.0f, p.strumSpeed) - 0.5f) / 1.5f;
+    const auto baseDelayMs = (p.strumStyle == 4)
+        ? juce::jmap (speedPosition, 58.0f, 16.0f)
+        : juce::jmap (speedPosition, 42.0f, 2.5f);
     const auto humanDelay = 1.0f + (variation - 0.5f) * (p.humanize / 100.0f) * 3.0f;
     strumDelayRemaining = juce::jmax (1, static_cast<int> (currentSampleRate * baseDelayMs * humanDelay / 1000.0f));
 }
@@ -333,8 +372,9 @@ void WoodlineAudioProcessor::renderOneSample (float& left, float& right, const R
                 beginStrum (direction, currentVelocity, p);
             patternStep = (patternStep + 1) % stepsPerPattern;
             const auto safeBpm = juce::jlimit (40.0f, 240.0f, p.tempo);
-            const auto speed = juce::jlimit (0.5f, 2.0f, p.strumSpeed);
-            samplesPerStep = juce::jmax (1, static_cast<int> (currentSampleRate * 60.0 / safeBpm / 4.0 / speed));
+            // Pattern timing follows the host BPM only. Strum Speed is
+            // applied separately to the inter-string delay above.
+            samplesPerStep = juce::jmax (1, static_cast<int> (currentSampleRate * 60.0 / safeBpm / 4.0));
             samplesUntilNextStep = samplesPerStep;
         }
         --samplesUntilNextStep;
@@ -420,6 +460,7 @@ void WoodlineAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
     RenderParameters p;
     readParameters (p);
     updateHostTempo (p);
+    displayTempo.store (p.tempo);
     if (! p.loopEnabled)
         loopRunning = false;
     const auto keySwitch = keySwitchPattern.load();
@@ -471,7 +512,7 @@ void WoodlineAudioProcessor::loadPreset (int presetIndex)
     const auto& p = presets[static_cast<size_t> (presetIndex)];
     applyPresetParameter ("strumSpeed", p.strumSpeed);
     applyPresetParameter ("humanize", p.humanize);
-    applyPresetParameter ("tempo", static_cast<float> (p.bpm));
+    applyPresetParameter ("strumStyle", static_cast<float> (p.strumStyle));
     applyPresetParameter ("pickAttack", p.pickAttack);
     applyPresetParameter ("body", p.body);
     applyPresetParameter ("bass", p.bass);
