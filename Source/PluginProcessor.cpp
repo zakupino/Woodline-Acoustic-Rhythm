@@ -545,7 +545,7 @@ juce::Array<juce::File> WoodlineAudioProcessor::getUserPresetFiles() const
 }
 
 bool WoodlineAudioProcessor::saveUserPreset (const juce::File& requestedFile,
-                                               const juce::String& presetName) const
+                                               const juce::String& presetName)
 {
     if (presetName.trim().isEmpty())
         return false;
