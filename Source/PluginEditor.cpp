@@ -425,7 +425,8 @@ WoodlineAudioProcessorEditor::WoodlineAudioProcessorEditor (WoodlineAudioProcess
 
     setupCombo (strumStyleBox, { "Auto", "Down", "Up", "Alternate", "Fingerpick" });
     setupCombo (chordModeBox, { "Major", "Minor", "7th", "Maj7", "Sus2", "Power" });
-    setupCombo (voicingBox, { "Open", "Barre", "Power" });
+    setupCombo (voicingBox, { "Open", "Barre", "Power", "Solo" });
+    setupCombo (keySelectBox, { "Follow MIDI", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" });
     setupCombo (loopPatternBox, { "Acoustic Pop 01", "Folk 02", "Indie 03", "Ballad 04",
                                   "Country 05", "Sixteenth 06", "Soft 07", "Driving 08" });
     setupCombo (themeBox, { "Studio Dark", "Soft Light", "Ocean Blue", "Forest Green", "Aurora Violet", "Ember Gradient" });
@@ -435,6 +436,7 @@ WoodlineAudioProcessorEditor::WoodlineAudioProcessorEditor (WoodlineAudioProcess
     voicingAttachment = std::make_unique<ComboBoxAttachment> (processor.parameters, "voicing", voicingBox);
     loopPatternAttachment = std::make_unique<ComboBoxAttachment> (processor.parameters, "loopPattern", loopPatternBox);
     themeAttachment = std::make_unique<ComboBoxAttachment> (processor.parameters, "theme", themeBox);
+    keySelectAttachment = std::make_unique<ComboBoxAttachment> (processor.parameters, "keySelect", keySelectBox);
     latchButton.setClickingTogglesState (true);
     loopButton.setClickingTogglesState (true);
     syncButton.setClickingTogglesState (true);
@@ -444,17 +446,19 @@ WoodlineAudioProcessorEditor::WoodlineAudioProcessorEditor (WoodlineAudioProcess
 
     const std::array<juce::Component*, 8> controls {{
         &strumStyleBox, &chordModeBox, &voicingBox, &loopPatternBox,
-        &themeBox, &latchButton, &loopButton, &syncButton
+        &themeBox, &keySelectBox, &latchButton, &loopButton, &syncButton
     }};
     for (auto* component : controls)
         addAndMakeVisible (component);
 
     strumStyleLabel.setText ("STRUM STYLE", juce::dontSendNotification);
+    keyLabel.setText ("KEY / MIDI ROOT", juce::dontSendNotification);
     chordModeLabel.setText ("CHORD MODE", juce::dontSendNotification);
     voicingLabel.setText ("VOICING", juce::dontSendNotification);
     loopPatternLabel.setText ("RHYTHM LOOP", juce::dontSendNotification);
+    keyLabel.setText ("KEY / MIDI ROOT", juce::dontSendNotification);
     themeLabel.setText ("THEME", juce::dontSendNotification);
-    for (auto* label : { &strumStyleLabel, &chordModeLabel, &voicingLabel, &loopPatternLabel, &themeLabel })
+    for (auto* label : { &strumStyleLabel, &chordModeLabel, &voicingLabel, &loopPatternLabel, &themeLabel, &keyLabel })
     {
         label->setFont (juce::Font (10.5f, juce::Font::bold));
         addAndMakeVisible (*label);
@@ -511,7 +515,7 @@ void WoodlineAudioProcessorEditor::applyPalette (int themeIndex)
         knob.slider.setColour (juce::Slider::textBoxBackgroundColourId, palette.field);
         knob.slider.setColour (juce::Slider::textBoxOutlineColourId, palette.border);
     }
-    for (auto* combo : { &strumStyleBox, &chordModeBox, &voicingBox, &loopPatternBox, &themeBox })
+    for (auto* combo : { &strumStyleBox, &chordModeBox, &voicingBox, &loopPatternBox, &themeBox, &keySelectBox })
     {
         combo->setColour (juce::ComboBox::backgroundColourId, palette.field);
         combo->setColour (juce::ComboBox::textColourId, palette.text);
@@ -525,7 +529,7 @@ void WoodlineAudioProcessorEditor::applyPalette (int themeIndex)
         button->setColour (juce::TextButton::textColourOffId, palette.text);
         button->setColour (juce::TextButton::textColourOnId, palette.text);
     }
-    for (auto* label : { &strumStyleLabel, &chordModeLabel, &voicingLabel, &loopPatternLabel, &themeLabel })
+    for (auto* label : { &strumStyleLabel, &chordModeLabel, &voicingLabel, &loopPatternLabel, &themeLabel, &keyLabel })
         label->setColour (juce::Label::textColourId, palette.muted);
     repaint();
 }
