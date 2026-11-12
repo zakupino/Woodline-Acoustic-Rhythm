@@ -15,6 +15,19 @@ const std::vector<WoodlinePreset>& getWoodlinePresets()
             { "Chill Acoustic", "Golden Hour", "Ambient Bloom", "Wide Horizon", "Film Score Soft", "Dreamscape", "Slow Motion", "Emotional Rise", "Atmosphere", "Final Scene" }
         };
 
+        // Hand-authored mappings to familiar acoustic accompaniment feels:
+        // pop 8ths, ballad, straight folk, country boom-chuck, indie syncopation,
+        // fingerpicked arpeggio, rock quarters and continuous 16ths.
+        static constexpr int categoryPatternMap[6][10] =
+        {
+            { 0, 0, 2, 1, 6, 3, 7, 0, 3, 6 },
+            { 5, 5, 5, 4, 5, 4, 5, 5, 4, 5 },
+            { 0, 1, 0, 1, 4, 0, 1, 0, 4, 0 },
+            { 6, 6, 7, 6, 7, 6, 7, 6, 6, 7 },
+            { 3, 3, 4, 3, 4, 3, 3, 4, 3, 4 },
+            { 5, 1, 5, 4, 5, 5, 1, 5, 4, 5 }
+        };
+
         std::vector<WoodlinePreset> result;
         result.reserve (60);
         for (int category = 0; category < 6; ++category)
@@ -24,7 +37,6 @@ const std::vector<WoodlinePreset>& getWoodlinePresets()
                 WoodlinePreset p;
                 p.name = names[category][i];
                 p.category = categories[category];
-                p.bpm = (category == 1 ? 78 : category == 3 ? 126 : category == 5 ? 82 : 96) + (i * 4);
                 p.strumSpeed = 0.72f + 0.12f * static_cast<float> (i % 6);
                 p.humanize = 18.0f + static_cast<float> ((i * 9 + category * 5) % 55);
                 p.pickAttack = 42.0f + static_cast<float> ((i * 7 + category * 8) % 48);
@@ -36,9 +48,12 @@ const std::vector<WoodlinePreset>& getWoodlinePresets()
                 p.delay = category == 5 ? 28.0f : category == 3 ? 12.0f : 5.0f + static_cast<float> (i % 5) * 3.0f;
                 p.chorus = category == 5 ? 34.0f : category == 1 ? 12.0f : 4.0f + static_cast<float> (i % 4) * 4.0f;
                 p.width = category == 5 ? 92.0f : 60.0f + static_cast<float> (i % 5) * 7.0f;
+                p.strumStyle = (category == 1 || category == 5) ? 4
+                             : (category == 3) ? 1
+                             : (category == 2 || category == 4) ? 3 : 0;
                 p.chordMode = (i % 7 == 4 ? 1 : i % 7 == 5 ? 2 : i % 7 == 6 ? 3 : 0);
                 p.voicing = (i % 6 == 5 ? 2 : i % 6 == 3 ? 1 : 0);
-                p.loopPattern = (category + i) % 8;
+                p.loopPattern = categoryPatternMap[category][i];
                 p.description = category == 0 ? "Punchy steel-string strumming with a natural pick attack." :
                                 category == 1 ? "Soft picked notes with warm sustain and intimate detail." :
                                 category == 2 ? "Balanced modern acoustic tone for pop and ballad arrangements." :
