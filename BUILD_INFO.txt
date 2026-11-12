@@ -1,0 +1,7 @@
+Project: Woodline Acoustic Rhythm
+Version: 1.0.0 (initial playable prototype source)
+Target: VST3 Instrument
+Framework: JUCE 9.0.5
+Build: GitHub Actions (Windows x64, macOS ARM64 and macOS Intel x64)
+
+This archive contains source code and a CI build workflow, not a precompiled VST3 binary. The VST3 binary is produced as a GitHub Actions artifact after a successful build.
