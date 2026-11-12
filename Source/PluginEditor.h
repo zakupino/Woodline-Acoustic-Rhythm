@@ -36,6 +36,7 @@ private:
     std::function<void()> onSaveRequested, onImportRequested, onExportRequested;
     juce::String selectedCategory = "All Presets";
     int selectedPreset = 0;
+    int selectedUserPresetIndex = 0;
     int pageIndex = 0;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PresetBrowserComponent)
 };
