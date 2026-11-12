@@ -24,12 +24,11 @@ private:
     juce::Rectangle<int> getCardBounds (int visibleCard) const;
     void drawGuitarArtwork (juce::Graphics& g, juce::Rectangle<float> area, juce::Colour accent) const;
 
-    juce::TextEditor searchBox;
     WoodlinePalette palette = getWoodlinePalette (0);
     std::function<void (int)> onPresetSelected;
     juce::String selectedCategory = "All Presets";
     int selectedPreset = 0;
-    bool sortByTempo = false;
+    int pageIndex = 0;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PresetBrowserComponent)
 };
 
@@ -82,11 +81,11 @@ private:
     std::array<Knob, 14> knobs;
     std::array<juce::Rectangle<int>, 5> panelBounds;
 
-    juce::ComboBox strumStyleBox, chordModeBox, voicingBox, loopPatternBox, themeBox;
+    juce::ComboBox strumStyleBox, chordModeBox, voicingBox, loopPatternBox, themeBox, keySelectBox;
     juce::TextButton latchButton { "LATCH" }, loopButton { "RHYTHM LOOP" }, syncButton { "DAW SYNC" };
-    juce::Label strumStyleLabel, chordModeLabel, voicingLabel, loopPatternLabel, themeLabel;
+    juce::Label strumStyleLabel, chordModeLabel, voicingLabel, loopPatternLabel, themeLabel, keyLabel;
     std::unique_ptr<ComboBoxAttachment> strumStyleAttachment, chordModeAttachment,
-        voicingAttachment, loopPatternAttachment, themeAttachment;
+        voicingAttachment, loopPatternAttachment, themeAttachment, keySelectAttachment;
     std::unique_ptr<ButtonAttachment> latchAttachment, loopAttachment, syncAttachment;
     float displayedOutputLevel = 0.0f;
 
